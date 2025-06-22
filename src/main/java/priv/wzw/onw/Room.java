@@ -22,6 +22,7 @@ public class Room {
     private final String id = UUID.randomUUID().toString();
     private final Set<Player> players = new HashSet<>();
     private final Set<RoleCard> selectedCards = new HashSet<>();
+    private final List<RoleCard> playerInitialCards = new ArrayList<>();
     private final List<RoleCard> playerCards = new ArrayList<>();
     private final List<RoleCard> centerCards = new ArrayList<>();
     private final List<Boolean> readyList = new ArrayList<>();
@@ -31,7 +32,6 @@ public class Room {
     private final GameStateMachine gameStateMachine;
 
     private Player hostPlayer;
-    private boolean started = false;
     @Autowired
     private RoomManager roomManager;
 
@@ -129,7 +129,6 @@ public class Room {
             readyList.add(false);
             alive.add(true);
         }
-        started = false;
     }
 
     public void shuffleRoleCards() {
@@ -139,6 +138,8 @@ public class Room {
         centerCards.addAll(shuffled.subList(shuffled.size() - CENTER_SIZE, shuffled.size()));
         playerCards.clear();
         playerCards.addAll(shuffled.subList(0, shuffled.size() - CENTER_SIZE));
+        playerInitialCards.clear();
+        playerInitialCards.addAll(playerCards);
     }
 
 }
