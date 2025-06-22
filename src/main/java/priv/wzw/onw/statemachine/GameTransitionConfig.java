@@ -145,7 +145,11 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> insomniacToVote() {
         return new Transition<>(EnumSet.of(GameState.INSOMNIAC_TURN, GameState.INSOMNIAC_DONE),
                 GameEvent.TURN_END, GameState.VOTING,
-                acceptAndScheduleTurnEnd(VoteTurnEvent::new));
+                gameContext -> {
+                    VoteTurnEvent voteTurnEvent = new VoteTurnEvent();
+                    String roomId = gameContext.getRoom().getId();
+                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(voteTurnEvent));
+                });
     }
 
     @Bean
