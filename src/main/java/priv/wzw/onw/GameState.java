@@ -1,0 +1,23 @@
+package priv.wzw.onw;
+
+public enum GameState {
+    INIT,
+    STARTED,
+    WEREWOLF_TURN,
+    WEREWOLF_DONE,
+    MINION_TURN,
+    MINION_DONE,
+    SEER_TURN,
+    SEER_DONE,
+    ROBBER_TURN,
+    ROBBER_DONE,
+    TROUBLEMAKER_TURN,
+    TROUBLEMAKER_DONE,
+    DRUNK_TURN,
+    DRUNK_DONE,
+    INSOMNIAC_TURN,
+    INSOMNIAC_DONE,
+    VOTING,
+    END,
+    ;
+}
