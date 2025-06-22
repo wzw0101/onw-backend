@@ -161,7 +161,7 @@ public class GameTransitionConfig {
 
 
     private Consumer<GameContext> acceptAndScheduleTurnEnd(Supplier<? extends AbstractRoomEvent> supplier) {
-        return acceptAndScheduleNext(supplier, GameEvent.TURN_END, 5);
+        return acceptAndScheduleNext(supplier, GameEvent.TURN_END, 20);
     }
 
     private Consumer<GameContext> acceptAndScheduleNext(Supplier<? extends AbstractRoomEvent> supplier,
