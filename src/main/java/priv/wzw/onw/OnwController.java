@@ -187,7 +187,7 @@ public class OnwController {
     }
 
     @GetMapping("/player/{userId}/insomniac-turn/player-card")
-    public String insomniacTurnGetPlayerCard(@PathVariable("userId") String userId, @PathVariable("cardIndex") int cardIndex) {
+    public String insomniacTurnGetPlayerCard(@PathVariable("userId") String userId) {
         Player player = playerManager.getOrCreate(userId);
         Room room = roomManager.lookup(player.getRoomId());
         if (room == null) {
