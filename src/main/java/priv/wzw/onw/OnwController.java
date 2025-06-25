@@ -201,4 +201,24 @@ public class OnwController {
         int playerSeatNum = room.getSeats().indexOf(userId);
         return room.getPlayerCards().get(playerSeatNum).name();
     }
+
+    @PostMapping("/player/{userId}/vote/{targetPlayerId}")
+    public void vote(@PathVariable("userId")String userId, @PathVariable("targetPlayerId") int targetPlayerIndex) {
+        Player voter = playerManager.getOrCreate(userId);
+        Room room = roomManager.lookup(voter.getRoomId());
+        if (room == null){
+             log.info("room {} not exist", voter.getRoomId());
+             return null;
+        }
+        if (room.getGameStateMachine().getCurrentState() != GameState.VOTING) {
+            log.info("player {} game is not in voting turn", userId);
+            return;
+        }
+        if (targetPlayerIndex < 0 || targetPlayerIndex >= room.getSelectedCards().size()) {
+            log.info("voted target index {} invalid", targetPlayerIndex);
+            return;
+        }
+        room.getVotes().get(targetPlayerIndex).incrementAndGet();
+    }
+
 }

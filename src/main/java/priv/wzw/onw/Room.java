@@ -11,6 +11,8 @@ import priv.wzw.onw.statemachine.GameContext;
 import priv.wzw.onw.statemachine.GameStateMachine;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 
 @Data
 @Slf4j
@@ -26,7 +28,7 @@ public class Room {
     private final List<RoleCard> playerCards = new ArrayList<>();
     private final List<RoleCard> centerCards = new ArrayList<>();
     private final List<Boolean> readyList = new ArrayList<>();
-    private final List<Boolean> alive = new ArrayList<>();
+    private final List<AtomicInteger> votes = new ArrayList<>();
     private final List<String> seats = new ArrayList<>();
     private final Deque<PlayerColor> colorPool = new ArrayDeque<>();
     private final GameStateMachine gameStateMachine;
@@ -124,10 +126,10 @@ public class Room {
         shuffleRoleCards();
 
         readyList.clear();
-        alive.clear();
+        votes.clear();
         for (int i = 0; i < playerCards.size(); i += 1) {
             readyList.add(false);
-            alive.add(true);
+            votes.add(new AtomicInteger(0));
         }
     }
 
