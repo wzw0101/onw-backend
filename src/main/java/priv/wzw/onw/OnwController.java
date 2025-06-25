@@ -203,12 +203,12 @@ public class OnwController {
     }
 
     @PostMapping("/player/{userId}/vote/{targetPlayerId}")
-    public void vote(@PathVariable("userId")String userId, @PathVariable("targetPlayerId") int targetPlayerIndex) {
+    public void vote(@PathVariable("userId") String userId, @PathVariable("targetPlayerId") int targetPlayerIndex) {
         Player voter = playerManager.getOrCreate(userId);
         Room room = roomManager.lookup(voter.getRoomId());
-        if (room == null){
-             log.info("room {} not exist", voter.getRoomId());
-             return null;
+        if (room == null) {
+            log.info("room {} not exist", voter.getRoomId());
+            return;
         }
         if (room.getGameStateMachine().getCurrentState() != GameState.VOTING) {
             log.info("player {} game is not in voting turn", userId);
