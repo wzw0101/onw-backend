@@ -25,6 +25,7 @@ public abstract class AbstractRoomEvent {
         DRUNK_TURN("drunkTurnEvent"),
         INSOMNIAC_TURN("insomniacTurnEvent"),
         VOTE_TURN("voteTurnEvent"),
+        GAME_OVER("gameOverEvent"),
         ;
 
         private final String name;
