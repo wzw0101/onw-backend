@@ -202,8 +202,8 @@ public class OnwController {
         return room.getPlayerCards().get(playerSeatNum).name();
     }
 
-    @PostMapping("/player/{userId}/vote/{targetPlayerId}")
-    public void vote(@PathVariable("userId") String userId, @PathVariable("targetPlayerId") int targetPlayerIndex) {
+    @PostMapping("/player/{userId}/vote/{targetPlayerIndex}")
+    public void vote(@PathVariable("userId") String userId, @PathVariable("targetPlayerIndex") int targetPlayerIndex) {
         Player voter = playerManager.getOrCreate(userId);
         Room room = roomManager.lookup(voter.getRoomId());
         if (room == null) {
@@ -218,7 +218,8 @@ public class OnwController {
             log.info("voted target index {} invalid", targetPlayerIndex);
             return;
         }
-        room.getVotes().get(targetPlayerIndex).incrementAndGet();
+        int seatNum = room.getSeats().indexOf(voter.getUserId());
+        room.getVotes().get(seatNum).compareAndSet(-1, targetPlayerIndex);
     }
 
 }

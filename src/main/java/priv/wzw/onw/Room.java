@@ -128,7 +128,7 @@ public class Room {
         votes.clear();
         for (int i = 0; i < playerCards.size(); i += 1) {
             readyList.add(false);
-            votes.add(new AtomicInteger(0));
+            votes.add(new AtomicInteger(-1));
         }
     }
 
