@@ -57,6 +57,7 @@ public class OnwController {
         player.takeSeat(seatNum);
     }
 
+    @Deprecated
     @DeleteMapping("/player/{userId}/seat")
     public void leaveSeat(@PathVariable("userId") String userId) {
         Player player = playerManager.get(userId);
