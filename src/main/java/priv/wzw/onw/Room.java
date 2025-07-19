@@ -21,6 +21,8 @@ public class Room {
     public static final int CENTER_SIZE = 3;
 
     private final String id = UUID.randomUUID().toString();
+    // generate id of 4 random characters
+    private final String id = RandomStringUtils.randomAlphanumeric(4);
     private final Set<Player> players = new HashSet<>();
     private final Set<RoleCard> selectedCards = new HashSet<>();
     private final List<RoleCard> playerInitialCards = new ArrayList<>();
