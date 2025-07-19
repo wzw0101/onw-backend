@@ -22,7 +22,9 @@ public class Player {
 
     private String userId;
     private String roomId;
+    @Deprecated
     private PlayerColor color;
+    @Deprecated
     private RoleCard initialRole;
 
     @Autowired

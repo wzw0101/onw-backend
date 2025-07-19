@@ -2,6 +2,7 @@ package priv.wzw.onw;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -20,7 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Room {
     public static final int CENTER_SIZE = 3;
 
-    private final String id = UUID.randomUUID().toString();
     // generate id of 4 random characters
     private final String id = RandomStringUtils.randomAlphanumeric(4);
     private final Set<Player> players = new HashSet<>();
@@ -33,6 +33,7 @@ public class Room {
     private final List<String> seats = new ArrayList<>();
     private final Deque<PlayerColor> colorPool = new ArrayDeque<>();
     private final GameStateMachine gameStateMachine;
+    private final Map<String, PlayerColor> playerColorMap = new HashMap<>();
 
     private Player hostPlayer;
     @Autowired
@@ -45,7 +46,9 @@ public class Room {
         }
 
         players.add(player);
-        player.setColor(colorPool.removeLast());
+        PlayerColor color = colorPool.removeLast();
+        player.setColor(color);
+        playerColorMap.put(player.getUserId(), color);
         return true;
     }
 
@@ -62,6 +65,7 @@ public class Room {
 
         players.remove(player);
         colorPool.addLast(player.getColor());
+        playerColorMap.remove(player.getUserId());
 
         if (players.isEmpty()) {
             roomManager.remove(id);
