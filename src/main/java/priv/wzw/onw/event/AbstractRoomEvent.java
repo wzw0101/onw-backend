@@ -7,7 +7,7 @@ public abstract class AbstractRoomEvent {
     private final Type eventType;
 
     public String getEventType() {
-        return eventType.name;
+        return eventType.toString();
     }
 
     public enum Type {
@@ -26,6 +26,7 @@ public abstract class AbstractRoomEvent {
         INSOMNIAC_TURN("insomniacTurnEvent"),
         VOTE_TURN("voteTurnEvent"),
         GAME_OVER("gameOverEvent"),
+        ROOM_STATE_CHANGED(""),
         ;
 
         private final String name;

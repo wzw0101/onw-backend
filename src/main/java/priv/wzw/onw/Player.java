@@ -10,7 +10,8 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
-import priv.wzw.onw.event.*;
+import priv.wzw.onw.event.PlayerLeaveSeatEvent;
+import priv.wzw.onw.event.RoomStateChangeEvent;
 
 @EqualsAndHashCode(of = "userId")
 @Data
@@ -46,7 +47,7 @@ public class Player {
         exitRoom();
         roomId = targetRoomId;
 
-        PlayerJoinEvent event = new PlayerJoinEvent(userId, color);
+        RoomStateChangeEvent event = new RoomStateChangeEvent(targetRoom);
         String eventJson = jacksonUtils.toJson(event);
         if (eventJson != null) {
             template.convertAndSend("/topic/room/" + roomId, eventJson);
@@ -57,16 +58,16 @@ public class Player {
         if (this.roomId == null) {
             return;
         }
-        PlayerLeftEvent event = new PlayerLeftEvent(userId);
         Room prevRoom = roomManager.lookup(roomId);
         if (prevRoom == null) {
             log.warn("user is in a non existing room {}", roomId);
             return;
         }
-        prevRoom.remove(this, event);
+        prevRoom.remove(this);
         color = null;
         initialRole = null;
 
+        RoomStateChangeEvent event = new RoomStateChangeEvent(prevRoom);
         String eventJson = jacksonUtils.toJson(event);
         if (eventJson != null) {
             template.convertAndSend("/topic/room/" + roomId, eventJson);
@@ -86,7 +87,7 @@ public class Player {
         }
         initialRole = room.getPlayerCards().get(seatNum);
 
-        PlayerTakeSeatEvent event = PlayerTakeSeatEvent.builder().seatNum(seatNum).userId(userId).build();
+        RoomStateChangeEvent event = new RoomStateChangeEvent(room);
         template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
     }
 
@@ -107,7 +108,7 @@ public class Player {
         }
         boolean updated = room.updateReadyState(userId, ready);
         if (updated) {
-            PlayerStateUpdateEvent event = PlayerStateUpdateEvent.builder().ready(ready).userId(userId).build();
+            RoomStateChangeEvent event = new RoomStateChangeEvent(room);
             template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
         }
     }

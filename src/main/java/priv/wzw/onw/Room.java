@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import priv.wzw.onw.event.PlayerLeftEvent;
 import priv.wzw.onw.statemachine.GameContext;
 import priv.wzw.onw.statemachine.GameStateMachine;
 
@@ -52,7 +51,7 @@ public class Room {
         return true;
     }
 
-    public void remove(Player player, PlayerLeftEvent event) {
+    public void remove(Player player) {
         if (!players.contains(player)) {
             return;
         }
@@ -72,8 +71,6 @@ public class Room {
         } else if (hostPlayer.equals(player)) {
             hostPlayer = new ArrayList<>(players).get(0);
         }
-        event.setHostChanged(true);
-        event.setCurrentHostId(hostPlayer.getUserId());
     }
 
     public boolean takeSeat(String userId, int seatNum) {
