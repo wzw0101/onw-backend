@@ -1,21 +1,20 @@
 package priv.wzw.onw.statemachine;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import priv.wzw.onw.*;
-import priv.wzw.onw.event.*;
+import priv.wzw.onw.event.PhaseChangedEvent;
 
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class GameTransitionConfig {
@@ -27,13 +26,13 @@ public class GameTransitionConfig {
     @Bean
     Transition<GameState, GameEvent, GameContext> initToStarted() {
         return new Transition<>(GameState.INIT, GameEvent.START, GameState.STARTED,
-                acceptAndScheduleNext(GameStartEvent::new, GameEvent.START, 3));
+                acceptAndScheduleNext(GamePhase.GAME_START, GameEvent.START, 3));
     }
 
     @Bean
     Transition<GameState, GameEvent, GameContext> startedToWerewolfTurn() {
         return new Transition<>(GameState.STARTED, GameEvent.START, GameState.WEREWOLF_TURN,
-                acceptAndScheduleTurnEnd(WerewolfTurnEvent::new));
+                acceptAndScheduleTurnEnd(GamePhase.WEREWOLF_TURN));
     }
 
     @Bean
@@ -54,7 +53,7 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> werewolfToMinionTurn() {
         return new Transition<>(EnumSet.of(GameState.WEREWOLF_TURN, GameState.WEREWOLF_DONE),
                 GameEvent.TURN_END, GameState.MINION_TURN,
-                acceptAndScheduleTurnEnd(MinionTurnEvent::new));
+                acceptAndScheduleTurnEnd(GamePhase.MINION_TURN));
     }
 
     @Bean
@@ -66,7 +65,7 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> minionToSeerTurn() {
         return new Transition<>(EnumSet.of(GameState.MINION_TURN, GameState.MINION_DONE),
                 GameEvent.TURN_END, GameState.SEER_TURN,
-                acceptAndScheduleTurnEnd(SeerTurnEvent::new));
+                acceptAndScheduleTurnEnd(GamePhase.SEER_TURN));
     }
 
     @Bean
@@ -78,7 +77,7 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> seerToRobberTurn() {
         return new Transition<>(EnumSet.of(GameState.SEER_TURN, GameState.SEER_DONE),
                 GameEvent.TURN_END, GameState.ROBBER_TURN,
-                acceptAndScheduleTurnEnd(RobberTurnEvent::new));
+                acceptAndScheduleTurnEnd(GamePhase.ROBBER_TURN));
     }
 
     @Bean
@@ -95,7 +94,7 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> robberToTroublemakerTurn() {
         return new Transition<>(EnumSet.of(GameState.ROBBER_TURN, GameState.ROBBER_DONE),
                 GameEvent.TURN_END, GameState.TROUBLEMAKER_TURN,
-                acceptAndScheduleTurnEnd(TroublemakerTurnEvent::new));
+                acceptAndScheduleTurnEnd(GamePhase.TROUBLEMAKER_TURN));
     }
 
     @Bean
@@ -113,7 +112,7 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> troublemakerToDrunkTurn() {
         return new Transition<>(EnumSet.of(GameState.TROUBLEMAKER_TURN, GameState.TROUBLEMAKER_DONE),
                 GameEvent.TURN_END, GameState.DRUNK_TURN,
-                acceptAndScheduleTurnEnd(DrunkTurnEvent::new));
+                acceptAndScheduleTurnEnd(GamePhase.DRUNK_TURN));
     }
 
     @Bean
@@ -133,7 +132,7 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> drunkToInsomniacTurn() {
         return new Transition<>(EnumSet.of(GameState.DRUNK_TURN, GameState.DRUNK_DONE),
                 GameEvent.TURN_END, GameState.INSOMNIAC_TURN,
-                acceptAndScheduleTurnEnd(InsomniacTurnEvent::new));
+                acceptAndScheduleTurnEnd(GamePhase.INSOMNIAC_TURN));
     }
 
     @Bean
@@ -146,9 +145,9 @@ public class GameTransitionConfig {
         return new Transition<>(EnumSet.of(GameState.INSOMNIAC_TURN, GameState.INSOMNIAC_DONE),
                 GameEvent.TURN_END, GameState.VOTING,
                 gameContext -> {
-                    VoteTurnEvent voteTurnEvent = new VoteTurnEvent();
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.VOTE_TURN).build();
                     String roomId = gameContext.getRoom().getId();
-                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(voteTurnEvent));
+                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
                 });
     }
 
@@ -156,18 +155,46 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> votingToEnd() {
         return new Transition<>(GameState.VOTING, GameEvent.VOTE_COMPLETE, GameState.END,
                 gameContext -> {
+                    Room room = gameContext.getRoom();
+                    // TODO deal with tie
+                    Map<Integer, Integer> voteCount = new HashMap<>();
+                    int maxCount = -1;
+                    int maxCountTarget = -1;
+                    for (int i = 0; i < room.getVotes().size(); i += 1) {
+                        int target = room.getVotes().get(i).get();
+                        if (target < 0) {
+                            continue;
+                        }
+                        int count = voteCount.getOrDefault(target, 0) + 1;
+                        voteCount.put(target, count);
+                        if (count > maxCount) {
+                            maxCount = count;
+                            maxCountTarget = target;
+                        }
+                    }
+                    if (maxCountTarget < 0) {
+                        log.info("invalid vote, reset vote counter");
+                        room.getVotes().forEach(vote -> vote.set(-1));
+                        return false;
+                    }
+                    return true;
+                },
+                gameContext -> {
+                    Room room = gameContext.getRoom();
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.GAME_OVER).build();
+                    template.convertAndSend("/topic/room/" + room.getId(), jacksonUtils.toJson(event));
                 });
     }
 
 
-    private Consumer<GameContext> acceptAndScheduleTurnEnd(Supplier<? extends AbstractRoomEvent> supplier) {
-        return acceptAndScheduleNext(supplier, GameEvent.TURN_END, 20);
+    private Consumer<GameContext> acceptAndScheduleTurnEnd(GamePhase gamePhase) {
+        return acceptAndScheduleNext(gamePhase, GameEvent.TURN_END, 20);
     }
 
-    private Consumer<GameContext> acceptAndScheduleNext(Supplier<? extends AbstractRoomEvent> supplier,
+    private Consumer<GameContext> acceptAndScheduleNext(GamePhase gamePhase,
                                                         GameEvent nextEvent, int delaySeconds) {
         return gameContext -> {
-            AbstractRoomEvent event = supplier.get();
+            PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(gamePhase).build();
             String roomId = gameContext.getRoom().getId();
             template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
             GameStateMachine gameStateMachine = gameContext.getRoom().getGameStateMachine();

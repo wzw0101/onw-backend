@@ -4,12 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
-import priv.wzw.onw.event.GameOverEvent;
+import priv.wzw.onw.statemachine.GameContext;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -241,32 +239,22 @@ public class OnwController {
             log.info("non host player cannot end voting");
             return;
         }
-        if (room.getGameStateMachine().getCurrentState() != GameState.VOTING) {
-            log.info("not vote turn");
-            return;
-        }
-        // TODO deal with tie
-        Map<Integer, Integer> voteCount = new HashMap<>();
-        int maxCount = -1;
-        int maxCountTarget = -1;
-        for (int i = 0; i < room.getVotes().size(); i += 1) {
-            int target = room.getVotes().get(i).get();
-            if (target < 0) {
-                continue;
-            }
-            int count = voteCount.getOrDefault(target, 0) + 1;
-            voteCount.put(target, count);
-            if (count > maxCount) {
-                maxCount = count;
-                maxCountTarget = target;
-            }
-        }
-        if (maxCountTarget < 0) {
-            log.info("invalid vote, reset vote counter");
-            room.getVotes().forEach(vote -> vote.set(-1));
-            return;
-        }
-        GameOverEvent gameOverEvent = new GameOverEvent(room.getSeats().get(maxCountTarget));
-        template.convertAndSend("/topic/room/" + room.getId(), jacksonUtils.toJson(gameOverEvent));
+        room.getGameStateMachine().sendEvent(GameEvent.VOTE_COMPLETE, GameContext.builder().room(room).build());
     }
+
+    @GetMapping("/player/{userId}/vote/result")
+    public String getVoteResult(@PathVariable("userId") String userId) {
+        Player player = playerManager.getOrCreate(userId);
+        Room room = roomManager.lookup(player.getRoomId());
+        if (room == null) {
+            log.info("player {} room not exist", userId);
+            return null;
+        }
+        if (room.getGameStateMachine().getCurrentState() != GameState.END) {
+            log.info("Game not ends, cannot get vote result");
+            return null;
+        }
+        return room.getSeats().get(room.getMostVotedTarget());
+    }
+
 }

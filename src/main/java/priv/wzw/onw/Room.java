@@ -1,5 +1,6 @@
 package priv.wzw.onw;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -17,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Component
+@AllArgsConstructor
 public class Room {
     public static final int CENTER_SIZE = 3;
 
@@ -56,11 +58,7 @@ public class Room {
             return;
         }
 
-        int seatNum = seats.indexOf(player.getUserId());
-        if (seatNum > 0) {
-            seats.set(seatNum, null);
-            readyList.set(seatNum, false);
-        }
+        leaveSeat(player.getUserId());
 
         players.remove(player);
         colorPool.addLast(player.getColor());
@@ -146,4 +144,22 @@ public class Room {
         playerInitialCards.addAll(playerCards);
     }
 
+    public int getMostVotedTarget() {
+        Map<Integer, Integer> voteCount = new HashMap<>();
+        int maxCount = -1;
+        int maxCountTarget = -1;
+        for (int i = 0; i < votes.size(); i += 1) {
+            int target = votes.get(i).get();
+            if (target < 0) {
+                continue;
+            }
+            int count = voteCount.getOrDefault(target, 0) + 1;
+            voteCount.put(target, count);
+            if (count > maxCount) {
+                maxCount = count;
+                maxCountTarget = target;
+            }
+        }
+        return maxCountTarget;
+    }
 }

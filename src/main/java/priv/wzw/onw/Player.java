@@ -10,7 +10,6 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
-import priv.wzw.onw.event.PlayerLeaveSeatEvent;
 import priv.wzw.onw.event.RoomStateChangeEvent;
 
 @EqualsAndHashCode(of = "userId")
@@ -97,8 +96,7 @@ public class Player {
             return;
         }
         room.leaveSeat(userId);
-        PlayerLeaveSeatEvent event = PlayerLeaveSeatEvent.builder().userId(userId).build();
-        template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
+        // TODO ROOM_STATE_CHANGE_EVENT
     }
 
     public void updateReadyState(boolean ready) {
