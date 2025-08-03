@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+import priv.wzw.onw.dto.ResponseBody;
 import priv.wzw.onw.statemachine.GameContext;
 
 import java.util.Arrays;
@@ -33,12 +34,14 @@ public class OnwController {
     }
 
     @PostMapping("/player/{userId}/room/{roomId}")
-    public void enterRoom(@PathVariable("roomId") String roomId, @PathVariable("userId") String userId) {
-        if (roomManager.lookup(roomId) == null) {
-            return;
+    public ResponseBody<Void> enterRoom(@PathVariable("roomId") String roomId, @PathVariable("userId") String userId) {
+        Room room = roomManager.lookup(roomId);
+        if (room == null) {
+            return ResponseBody.fail("room not exist");
         }
         Player player = playerManager.getOrCreate(userId);
         player.joinRoom(roomId);
+        return ResponseBody.success();
     }
 
     @DeleteMapping("/player/{userId}/room")
