@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
-import priv.wzw.onw.dto.ResponseBody;
+import priv.wzw.onw.dto.*;
 import priv.wzw.onw.statemachine.GameContext;
 
 import java.util.Arrays;
@@ -16,14 +16,29 @@ import java.util.Collections;
 @RequiredArgsConstructor
 public class OnwController {
 
+    private final Converters converters;
     private final RoomManager roomManager;
     private final PlayerManager playerManager;
     private final SimpMessagingTemplate template;
     private final JacksonUtils jacksonUtils;
 
     @GetMapping("/room/{roomId}")
+    @Deprecated
     public Room getRoom(@PathVariable("roomId") String roomId) {
         return roomManager.lookup(roomId);
+    }
+
+    @GetMapping("/player/{playerId}/room")
+    public ApiResponse<RoomDTO> getPlayerRoom(@PathVariable("playerId") String playerId) {
+        Player player = playerManager.get(playerId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
+        Room room = roomManager.lookup(player.getRoomId());
+        if (room == null) {
+            return ApiResponse.fail("room not exist");
+        }
+        return ApiResponse.success(converters.toDTO(room));
     }
 
     @PostMapping("/player/{userId}/room")
@@ -34,14 +49,14 @@ public class OnwController {
     }
 
     @PostMapping("/player/{userId}/room/{roomId}")
-    public ResponseBody<Void> enterRoom(@PathVariable("roomId") String roomId, @PathVariable("userId") String userId) {
+    public ApiResponse<Void> enterRoom(@PathVariable("roomId") String roomId, @PathVariable("userId") String userId) {
         Room room = roomManager.lookup(roomId);
         if (room == null) {
-            return ResponseBody.fail("room not exist");
+            return ApiResponse.fail("room not exist");
         }
         Player player = playerManager.getOrCreate(userId);
         player.joinRoom(roomId);
-        return ResponseBody.success();
+        return ApiResponse.success();
     }
 
     @DeleteMapping("/player/{userId}/room")
@@ -50,12 +65,17 @@ public class OnwController {
     }
 
     @PostMapping("/player/{userId}/seat/{seatNum}")
-    public void takeSeat(@PathVariable("userId") String userId, @PathVariable("seatNum") int seatNum) {
+    public ApiResponse<SeatData> takeSeat(@PathVariable("userId") String userId, @PathVariable("seatNum") int seatNum) {
         Player player = playerManager.get(userId);
         if (player == null) {
-            return;
+            return ApiResponse.fail("player not exist");
         }
-        player.takeSeat(seatNum);
+        SeatData seatData = player.takeSeat(seatNum);
+        if (seatData == null) {
+            log.error("player {} failed to take seat {} ", userId, seatNum);
+            return ApiResponse.fail("failed to take seat");
+        }
+        return ApiResponse.success(seatData);
     }
 
     @Deprecated
@@ -82,132 +102,197 @@ public class OnwController {
         playerManager.getOrCreate(userId).startGame();
     }
 
-    @GetMapping("/player/{userId}/werewolf-turn/center-card/{cardIndex}")
-    public String werewolfTurnGetCenterCard(@PathVariable("userId") String userId, @PathVariable("cardIndex") int cardIndex) {
-        Player player = playerManager.getOrCreate(userId);
+    @GetMapping("/player/{userId}/werewolf-turn")
+    public ApiResponse<GetWerewolfData> werewolfTurn(
+            @PathVariable("userId") String userId,
+            @RequestParam(name = "cardIndex", required = false) Integer cardIndex) {
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
         Room room = roomManager.lookup(player.getRoomId());
         if (room == null) {
-            log.info("room {} not exist", player.getRoomId());
-            return null;
+            return ApiResponse.fail("room not exist");
         }
         if (room.getGameStateMachine().getCurrentState() != GameState.WEREWOLF_TURN) {
             log.info("player {} game is not in werewolf turn", userId);
-            return null;
+            return ApiResponse.fail("game is not in werewolf turn");
         }
-        if (cardIndex < 0 || cardIndex >= room.getCenterCards().size()) {
-            log.info("card index {} out of range", cardIndex);
-            return null;
+
+        GetWerewolfData.GetWerewolfDataBuilder builder = GetWerewolfData.builder();
+        if (cardIndex == null) {
+            int playerIndex = room.getSeats().indexOf(userId);
+            Integer werewolfIndex = null;
+            for (int i = 0; i < room.getPlayerCards().size(); i += 1) {
+                if (room.getPlayerCards().get(i) == RoleCard.WEREWOLF && i != playerIndex) {
+                    werewolfIndex = i;
+                }
+            }
+            builder.werewolfIndex(werewolfIndex);
+        } else {
+            if (cardIndex < 0 || cardIndex >= room.getCenterCards().size()) {
+                log.info("card index {} out of range", cardIndex);
+                return ApiResponse.fail("card index out of range");
+            }
+            builder.centerCard(room.getCenterCards().get(cardIndex));
         }
-        return room.getCenterCards().get(cardIndex).name();
+        return ApiResponse.success(builder.build());
     }
 
-    @GetMapping("/player/{userId}/seer-turn/player-card/{cardIndex}")
-    public String seerTurnGetPlayerCard(@PathVariable("userId") String userId, @PathVariable("cardIndex") int cardIndex) {
-        Player player = playerManager.getOrCreate(userId);
+    @GetMapping("/player/{userId}/minion-turn")
+    public ApiResponse<GetMinionData> minionTurn(@PathVariable("userId") String userId) {
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
         Room room = roomManager.lookup(player.getRoomId());
         if (room == null) {
-            log.info("room {} not exist", player.getRoomId());
             return null;
+        }
+        if (room.getGameStateMachine().getCurrentState() != GameState.MINION_TURN) {
+            log.info("player {} game is not in minion turn", userId);
+            return null;
+        }
+        int werewolfIndex = room.getPlayerCards().indexOf(RoleCard.WEREWOLF);
+        return ApiResponse.success(GetMinionData.builder().werewolfIndex(werewolfIndex).build());
+    }
+
+    @GetMapping("/player/{userId}/seer-turn")
+    public ApiResponse<GetSeerData> seerTurn(@PathVariable("userId") String userId,
+                                             @RequestParam("cardIndex") int cardIndex) {
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
+        Room room = roomManager.lookup(player.getRoomId());
+        if (room == null) {
+            return ApiResponse.fail("room not exist");
         }
         if (room.getGameStateMachine().getCurrentState() != GameState.SEER_TURN) {
             log.info("player {} game is not in seer turn", userId);
-            return null;
+            return ApiResponse.fail("game is not in seer turn");
         }
         if (cardIndex < 0 || cardIndex >= room.getPlayerCards().size()) {
             log.info("card index {} out of range", cardIndex);
-            return null;
+            return ApiResponse.fail("card index out of range");
         }
-        return room.getPlayerCards().get(cardIndex).name();
+        GetSeerData data = GetSeerData.builder().roleCard(room.getPlayerCards().get(cardIndex)).build();
+        return ApiResponse.success(data);
     }
 
-    @PutMapping("/player/{userId}/robber-turn/player-card/{cardIndex}")
-    public String robberTurnRobPlayerCard(@PathVariable("userId") String userId, @PathVariable("cardIndex") int cardIndex) {
-        Player player = playerManager.getOrCreate(userId);
+    @PutMapping("/player/{userId}/robber-turn")
+    public ApiResponse<RobberData> robberTurn(@PathVariable("userId") String userId,
+                                              @RequestBody RobberRequest request) {
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
         Room room = roomManager.lookup(player.getRoomId());
         if (room == null) {
-            log.info("room {} not exist", player.getRoomId());
-            return null;
+            return ApiResponse.fail("room not exist");
         }
         if (room.getGameStateMachine().getCurrentState() != GameState.ROBBER_TURN) {
             log.info("player {} game is not in robber turn", userId);
-            return null;
+            return ApiResponse.fail("game is not in robber turn");
         }
+
+        final int cardIndex = request.getCardIndex();
         if (cardIndex < 0 || cardIndex >= room.getPlayerCards().size()) {
             log.info("card index {} out of range", cardIndex);
-            return null;
+            return ApiResponse.fail("card index out of range");
         }
         if (userId.equals(room.getSeats().get(cardIndex))) {
             log.info("can not rob yourself");
-            return null;
+            return ApiResponse.fail("can not rob yourself");
         }
-        String robCardName = room.getPlayerCards().get(cardIndex).name();
+
+        RoleCard robbedRoleCard = room.getPlayerCards().get(cardIndex);
         Collections.swap(room.getPlayerCards(), cardIndex, room.getPlayerCards().indexOf(RoleCard.ROBBER));
-        return robCardName;
+        RobberData data = RobberData.builder().roleCard(robbedRoleCard).build();
+        return ApiResponse.success(data);
     }
 
-    @PutMapping("/player/{userId}/troublemaker-turn/player-cards/{cardIndices}")
-    public void troublemakerTurnSwapPlayerCards(@PathVariable("userId") String userId, @PathVariable("cardIndices") int[] cardIndices) {
-        Player player = playerManager.getOrCreate(userId);
+    @PutMapping("/player/{userId}/troublemaker-turn")
+    public ApiResponse<Void> troublemakerTurn(@PathVariable("userId") String userId,
+                                              @RequestBody TroubleMakerRequest request) {
+
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
         Room room = roomManager.lookup(player.getRoomId());
         if (room == null) {
-            log.info("room {} not exist", player.getRoomId());
-            return;
+            return ApiResponse.fail("room not exist");
         }
         if (room.getGameStateMachine().getCurrentState() != GameState.TROUBLEMAKER_TURN) {
             log.info("player {} game is not in troublemaker turn", userId);
-            return;
+            return ApiResponse.fail("game is not in troublemaker turn");
         }
+
+        final int[] cardIndices = request.getCardIndices();
         if (cardIndices.length != 2) {
             log.info("card indices length must be 2");
-            return;
+            return ApiResponse.fail("card indices length must be 2");
         }
         if (cardIndices[0] < 0 || cardIndices[0] >= room.getPlayerCards().size()) {
             log.info("card index {} out of range", cardIndices[0]);
-            return;
+            return ApiResponse.fail("card index out of range");
         }
         if (cardIndices[1] < 0 || cardIndices[1] >= room.getPlayerCards().size()) {
             log.info("card index {} out of range", cardIndices[1]);
-            return;
+            return ApiResponse.fail("card index out of range");
         }
         Collections.swap(room.getPlayerCards(), cardIndices[0], cardIndices[1]);
+        return ApiResponse.success();
     }
 
-    @PutMapping("/player/{userId}/drunk-turn/center-card/{cardIndex}")
-    public void drunkTurnSwapCenterCard(@PathVariable("userId") String userId, @PathVariable("cardIndex") int cardIndex) {
-        Player player = playerManager.getOrCreate(userId);
+    @PutMapping("/player/{userId}/drunk-turn")
+    public ApiResponse<Void> drunkTurn(@PathVariable("userId") String userId,
+                                       @RequestBody DrunkRequest request) {
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
         Room room = roomManager.lookup(player.getRoomId());
         if (room == null) {
-            log.info("room {} not exist", player.getRoomId());
-            return;
+            return ApiResponse.fail("room not exist");
         }
         if (room.getGameStateMachine().getCurrentState() != GameState.DRUNK_TURN) {
             log.info("player {} game is not in drunk turn", userId);
-            return;
+            return ApiResponse.fail("game is not in drunk turn");
         }
+
+        final int cardIndex = request.getCardIndex();
         if (cardIndex < 0 || cardIndex >= room.getCenterCards().size()) {
             log.info("card index {} out of range", cardIndex);
-            return;
+            return ApiResponse.fail("card index out of range");
         }
         RoleCard toSwap = room.getCenterCards().get(cardIndex);
         room.getCenterCards().set(cardIndex, RoleCard.DRUNK);
         int playerSeatNum = room.getSeats().indexOf(userId);
         room.getPlayerCards().set(playerSeatNum, toSwap);
+        return ApiResponse.success();
     }
 
-    @GetMapping("/player/{userId}/insomniac-turn/player-card")
-    public String insomniacTurnGetPlayerCard(@PathVariable("userId") String userId) {
-        Player player = playerManager.getOrCreate(userId);
+    @GetMapping("/player/{userId}/insomniac-turn")
+    public ApiResponse<GetInsomniacData> insomniacTurn(@PathVariable("userId") String userId) {
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
         Room room = roomManager.lookup(player.getRoomId());
         if (room == null) {
-            log.info("room {} not exist", player.getRoomId());
-            return null;
+            return ApiResponse.fail("room not exist");
         }
         if (room.getGameStateMachine().getCurrentState() != GameState.INSOMNIAC_TURN) {
             log.info("player {} game is not in insomniac turn", userId);
-            return null;
+            return ApiResponse.fail("game is not in insomniac turn");
         }
+
         int playerSeatNum = room.getSeats().indexOf(userId);
-        return room.getPlayerCards().get(playerSeatNum).name();
+        RoleCard roleCard = room.getPlayerCards().get(playerSeatNum);
+        GetInsomniacData data = GetInsomniacData.builder().roleCard(roleCard).build();
+        return ApiResponse.success(data);
     }
 
     @PostMapping("/player/{userId}/vote/{targetPlayerIndex}")

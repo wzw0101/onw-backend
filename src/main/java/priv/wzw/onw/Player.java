@@ -10,6 +10,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
+import priv.wzw.onw.dto.SeatData;
 import priv.wzw.onw.event.RoomStateChangeEvent;
 
 @EqualsAndHashCode(of = "userId")
@@ -36,6 +37,9 @@ public class Player {
     @Autowired
     @JsonIgnore
     private JacksonUtils jacksonUtils;
+    @Autowired
+    @JsonIgnore
+    private Converters converters;
 
     public void joinRoom(String targetRoomId) {
         Room targetRoom = roomManager.lookup(targetRoomId);
@@ -46,7 +50,7 @@ public class Player {
         exitRoom();
         roomId = targetRoomId;
 
-        RoomStateChangeEvent event = new RoomStateChangeEvent(targetRoom);
+        RoomStateChangeEvent event = new RoomStateChangeEvent(converters.toDTO(targetRoom));
         String eventJson = jacksonUtils.toJson(event);
         if (eventJson != null) {
             template.convertAndSend("/topic/room/" + roomId, eventJson);
@@ -66,7 +70,7 @@ public class Player {
         color = null;
         initialRole = null;
 
-        RoomStateChangeEvent event = new RoomStateChangeEvent(prevRoom);
+        RoomStateChangeEvent event = new RoomStateChangeEvent(converters.toDTO(prevRoom));
         String eventJson = jacksonUtils.toJson(event);
         if (eventJson != null) {
             template.convertAndSend("/topic/room/" + roomId, eventJson);
@@ -75,19 +79,20 @@ public class Player {
         roomId = null;
     }
 
-    public void takeSeat(int seatNum) {
+    public SeatData takeSeat(int seatNum) {
         Room room = roomManager.lookup(roomId);
         if (room == null) {
             log.info("can not take the seat cause room {} not exist ", roomId);
-            return;
+            return null;
         }
         if (!room.takeSeat(userId, seatNum)) {
-            return;
+            return null;
         }
-        initialRole = room.getPlayerCards().get(seatNum);
+        SeatData seatData = SeatData.builder().initialRole(room.getPlayerCards().get(seatNum)).build();
 
-        RoomStateChangeEvent event = new RoomStateChangeEvent(room);
+        RoomStateChangeEvent event = new RoomStateChangeEvent(converters.toDTO(room));
         template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
+        return seatData;
     }
 
     public void leaveSeat() {
@@ -106,7 +111,7 @@ public class Player {
         }
         boolean updated = room.updateReadyState(userId, ready);
         if (updated) {
-            RoomStateChangeEvent event = new RoomStateChangeEvent(room);
+            RoomStateChangeEvent event = new RoomStateChangeEvent(converters.toDTO(room));
             template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
         }
     }

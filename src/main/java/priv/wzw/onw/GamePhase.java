@@ -1,6 +1,7 @@
 package priv.wzw.onw;
 
 public enum GamePhase {
+    PREPARE,
     GAME_START,
     WEREWOLF_TURN,
     MINION_TURN,
