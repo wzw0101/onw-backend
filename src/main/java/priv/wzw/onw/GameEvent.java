@@ -11,5 +11,5 @@ public enum GameEvent {
     DRUNK_ACT,
     INSOMNIAC_ACT,
     VOTE_COMPLETE,
-    ;
+    RESTART,
 }

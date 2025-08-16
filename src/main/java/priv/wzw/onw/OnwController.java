@@ -345,4 +345,22 @@ public class OnwController {
         return room.getSeats().get(room.getMostVotedTarget());
     }
 
+    @PostMapping("/player/{userId}/restart")
+    public ApiResponse<Void> restart(@PathVariable("userId") String userId) {
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
+        Room room = roomManager.lookup(player.getRoomId());
+        if (room == null) {
+            return ApiResponse.fail("room not exist");
+        }
+        if (!room.getHostPlayer().equals(player)) {
+            return ApiResponse.fail("only host player can restart");
+        }
+        GameContext gameContext = GameContext.builder().room(room).build();
+        room.getGameStateMachine().sendEvent(GameEvent.RESTART, gameContext);
+        return ApiResponse.success();
+    }
+
 }

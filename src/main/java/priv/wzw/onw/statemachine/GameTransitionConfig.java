@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import priv.wzw.onw.*;
 import priv.wzw.onw.event.PhaseChangedEvent;
+import priv.wzw.onw.event.RoomStateChangeEvent;
 
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -184,6 +185,23 @@ public class GameTransitionConfig {
                     PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.GAME_OVER).build();
                     template.convertAndSend("/topic/room/" + room.getId(), jacksonUtils.toJson(event));
                 });
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> restart(Converters converters) {
+        return new Transition<>(GameState.END, GameEvent.RESTART, GameState.INIT,
+                gameContext -> {
+                    Room room = gameContext.getRoom();
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.PREPARE).build();
+                    template.convertAndSend("/topic/room/" + room.getId(), jacksonUtils.toJson(event));
+
+                    room.reset();
+                    RoomStateChangeEvent roomStateChangeEvent = new RoomStateChangeEvent(
+                            converters.toDTO(room));
+                    template.convertAndSend("/topic/room/" + room.getId(),
+                            jacksonUtils.toJson(roomStateChangeEvent));
+                });
+
     }
 
 
