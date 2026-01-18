@@ -2,6 +2,7 @@ package priv.wzw.onw;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Component
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class Room {
     public static final int CENTER_SIZE = 3;
 
