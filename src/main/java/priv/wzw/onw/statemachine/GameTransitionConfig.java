@@ -27,7 +27,8 @@ public class GameTransitionConfig {
     @Bean
     Transition<GameState, GameEvent, GameContext> initToStarted() {
         return new Transition<>(GameState.INIT, GameEvent.START, GameState.STARTED,
-                acceptAndScheduleNext(GamePhase.GAME_START, GameEvent.START, 3));
+                acceptAndScheduleNext(GamePhase.GAME_START, GameEvent.START, 
+                        gameContext -> gameContext.getRoom().getGameStartDelaySeconds()));
     }
 
     @Bean
@@ -206,16 +207,19 @@ public class GameTransitionConfig {
 
 
     private Consumer<GameContext> acceptAndScheduleTurnEnd(GamePhase gamePhase) {
-        return acceptAndScheduleNext(gamePhase, GameEvent.TURN_END, 20);
+        return acceptAndScheduleNext(gamePhase, GameEvent.TURN_END, 
+                gameContext -> gameContext.getRoom().getTurnDurationSeconds());
     }
 
     private Consumer<GameContext> acceptAndScheduleNext(GamePhase gamePhase,
-                                                        GameEvent nextEvent, int delaySeconds) {
+                                                        GameEvent nextEvent, 
+                                                        java.util.function.Function<GameContext, Integer> delaySecondsProvider) {
         return gameContext -> {
             PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(gamePhase).build();
             String roomId = gameContext.getRoom().getId();
             template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
             GameStateMachine gameStateMachine = gameContext.getRoom().getGameStateMachine();
+            int delaySeconds = delaySecondsProvider.apply(gameContext);
             scheduler.schedule(
                     () -> gameStateMachine.sendEvent(nextEvent, gameContext),
                     delaySeconds, TimeUnit.SECONDS);

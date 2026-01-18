@@ -19,4 +19,6 @@ public class RoomDTO {
     private GamePhase gamePhase;
     private Map<String, PlayerColor> playerColorMap;
     private String hostPlayer;
+    private Integer gameStartDelaySeconds;
+    private Integer turnDurationSeconds;
 }

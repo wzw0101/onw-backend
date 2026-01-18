@@ -14,8 +14,10 @@ public class RoomManager {
     private static final Map<String, Room> allRoomMap = new HashMap<>();
 
     private final ObjectFactory<Room> roomObjectFactory;
+    private final GameTimingProperties gameTimingProperties;
 
-    public Room createRoom(Player hostPlayer, List<RoleCard> selectedCards) {
+    public Room createRoom(Player hostPlayer, List<RoleCard> selectedCards, 
+                          Integer gameStartDelaySeconds, Integer turnDurationSeconds) {
         int playerSize = selectedCards.size() - Room.CENTER_SIZE;
         Room room = roomObjectFactory.getObject();
 
@@ -26,6 +28,14 @@ public class RoomManager {
         List<PlayerColor> colors = Arrays.asList(PlayerColor.values());
         Collections.shuffle(colors);
         room.getColorPool().addAll(colors.subList(0, playerSize));
+
+        // 设置时间配置，如果未提供则使用配置属性中的默认值
+        room.setGameStartDelaySeconds(gameStartDelaySeconds != null 
+                ? gameStartDelaySeconds 
+                : gameTimingProperties.getGameStartDelaySeconds());
+        room.setTurnDurationSeconds(turnDurationSeconds != null 
+                ? turnDurationSeconds 
+                : gameTimingProperties.getDefaultTurnDurationSeconds());
 
         room.reset();
 

@@ -8,7 +8,7 @@ import priv.wzw.onw.dto.*;
 import priv.wzw.onw.statemachine.GameContext;
 
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -42,9 +42,16 @@ public class OnwController {
     }
 
     @PostMapping("/player/{userId}/room")
-    public String createRoom(@PathVariable("userId") String userId) {
+    public String createRoom(@PathVariable("userId") String userId,
+                            @RequestBody(required = false) CreateRoomRequest request) {
         Player player = playerManager.getOrCreate(userId);
-        Room room = roomManager.createRoom(player, Arrays.asList(RoleCard.values()));
+        Integer gameStartDelaySeconds = request != null ? request.getGameStartDelaySeconds() : null;
+        Integer turnDurationSeconds = request != null ? request.getTurnDurationSeconds() : null;
+        List<RoleCard> selectedRoles = (request != null && request.getRoles() != null && !request.getRoles().isEmpty())
+                ? request.getRoles()
+                : Arrays.asList(RoleCard.values());
+        Room room = roomManager.createRoom(player, selectedRoles, 
+                                          gameStartDelaySeconds, turnDurationSeconds);
         return room.getId();
     }
 
@@ -206,8 +213,16 @@ public class OnwController {
             return ApiResponse.fail("can not rob yourself");
         }
 
+        // Get the role card that will be robbed before the swap happens
         RoleCard robbedRoleCard = room.getPlayerCards().get(cardIndex);
-        Collections.swap(room.getPlayerCards(), cardIndex, room.getPlayerCards().indexOf(RoleCard.ROBBER));
+        
+        // Fire event to state machine to handle the swap
+        GameContext gameContext = GameContext.builder()
+                .room(room)
+                .robTargetIndex(cardIndex)
+                .build();
+        room.getGameStateMachine().sendEvent(GameEvent.ROBBER_ACT, gameContext);
+        
         RobberData data = RobberData.builder().roleCard(robbedRoleCard).build();
         return ApiResponse.success(data);
     }
@@ -242,7 +257,15 @@ public class OnwController {
             log.info("card index {} out of range", cardIndices[1]);
             return ApiResponse.fail("card index out of range");
         }
-        Collections.swap(room.getPlayerCards(), cardIndices[0], cardIndices[1]);
+        
+        // Fire event to state machine to handle the swap
+        GameContext gameContext = GameContext.builder()
+                .room(room)
+                .troublemakerIndex1(cardIndices[0])
+                .troublemakerIndex2(cardIndices[1])
+                .build();
+        room.getGameStateMachine().sendEvent(GameEvent.TROUBLEMAKER_ACT, gameContext);
+        
         return ApiResponse.success();
     }
 
@@ -267,10 +290,14 @@ public class OnwController {
             log.info("card index {} out of range", cardIndex);
             return ApiResponse.fail("card index out of range");
         }
-        RoleCard toSwap = room.getCenterCards().get(cardIndex);
-        room.getCenterCards().set(cardIndex, RoleCard.DRUNK);
-        int playerSeatNum = room.getSeats().indexOf(userId);
-        room.getPlayerCards().set(playerSeatNum, toSwap);
+        
+        // Fire event to state machine to handle the swap
+        GameContext gameContext = GameContext.builder()
+                .room(room)
+                .drunkCenterIndex(cardIndex)
+                .build();
+        room.getGameStateMachine().sendEvent(GameEvent.DRUNK_ACT, gameContext);
+        
         return ApiResponse.success();
     }
 

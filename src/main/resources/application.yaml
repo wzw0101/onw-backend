@@ -1,1 +1,9 @@
 #logging.level.root: DEBUG
+
+# 游戏时间配置
+game:
+  timing:
+    # 游戏开始阶段的延迟时间（秒）
+    game-start-delay-seconds: 3
+    # 默认回合持续时间（秒）- 用于所有角色回合
+    default-turn-duration-seconds: 20

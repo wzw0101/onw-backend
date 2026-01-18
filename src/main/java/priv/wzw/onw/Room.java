@@ -40,6 +40,16 @@ public class Room {
     @Autowired
     private RoomManager roomManager;
 
+    /**
+     * 游戏开始阶段的延迟时间（秒）
+     */
+    private int gameStartDelaySeconds = 3;
+
+    /**
+     * 默认回合持续时间（秒）
+     */
+    private int turnDurationSeconds = 20;
+
     public boolean accept(Player player) {
         // reject if table is full
         if (players.size() >= selectedCards.size()) {
