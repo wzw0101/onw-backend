@@ -20,6 +20,16 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor
 public class GameTransitionConfig {
 
+    private static final List<RoleCard> ROLE_ORDER = Arrays.asList(
+            RoleCard.WEREWOLF,
+            RoleCard.MINION,
+            RoleCard.SEER,
+            RoleCard.ROBBER,
+            RoleCard.TROUBLEMAKER,
+            RoleCard.DRUNK,
+            RoleCard.INSOMNIAC
+    );
+
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(3);
     private final SimpMessagingTemplate template;
     private final JacksonUtils jacksonUtils;
@@ -55,7 +65,60 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> werewolfToMinionTurn() {
         return new Transition<>(EnumSet.of(GameState.WEREWOLF_TURN, GameState.WEREWOLF_DONE),
                 GameEvent.TURN_END, GameState.MINION_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.WEREWOLF, RoleCard.MINION),
                 acceptAndScheduleTurnEnd(GamePhase.MINION_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> werewolfToSeerTurn() {
+        return new Transition<>(EnumSet.of(GameState.WEREWOLF_TURN, GameState.WEREWOLF_DONE),
+                GameEvent.TURN_END, GameState.SEER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.WEREWOLF, RoleCard.SEER),
+                acceptAndScheduleTurnEnd(GamePhase.SEER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> werewolfToRobberTurn() {
+        return new Transition<>(EnumSet.of(GameState.WEREWOLF_TURN, GameState.WEREWOLF_DONE),
+                GameEvent.TURN_END, GameState.ROBBER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.WEREWOLF, RoleCard.ROBBER),
+                acceptAndScheduleTurnEnd(GamePhase.ROBBER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> werewolfToTroublemakerTurn() {
+        return new Transition<>(EnumSet.of(GameState.WEREWOLF_TURN, GameState.WEREWOLF_DONE),
+                GameEvent.TURN_END, GameState.TROUBLEMAKER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.WEREWOLF, RoleCard.TROUBLEMAKER),
+                acceptAndScheduleTurnEnd(GamePhase.TROUBLEMAKER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> werewolfToDrunkTurn() {
+        return new Transition<>(EnumSet.of(GameState.WEREWOLF_TURN, GameState.WEREWOLF_DONE),
+                GameEvent.TURN_END, GameState.DRUNK_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.WEREWOLF, RoleCard.DRUNK),
+                acceptAndScheduleTurnEnd(GamePhase.DRUNK_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> werewolfToInsomniacTurn() {
+        return new Transition<>(EnumSet.of(GameState.WEREWOLF_TURN, GameState.WEREWOLF_DONE),
+                GameEvent.TURN_END, GameState.INSOMNIAC_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.WEREWOLF, RoleCard.INSOMNIAC),
+                acceptAndScheduleTurnEnd(GamePhase.INSOMNIAC_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> werewolfToVote() {
+        return new Transition<>(EnumSet.of(GameState.WEREWOLF_TURN, GameState.WEREWOLF_DONE),
+                GameEvent.TURN_END, GameState.VOTING,
+                gameContext -> hasNoSpecialRolesAfter(gameContext, RoleCard.WEREWOLF),
+                gameContext -> {
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.VOTE_TURN).build();
+                    String roomId = gameContext.getRoom().getId();
+                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
+                });
     }
 
     @Bean
@@ -67,7 +130,52 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> minionToSeerTurn() {
         return new Transition<>(EnumSet.of(GameState.MINION_TURN, GameState.MINION_DONE),
                 GameEvent.TURN_END, GameState.SEER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.MINION, RoleCard.SEER),
                 acceptAndScheduleTurnEnd(GamePhase.SEER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> minionToRobberTurn() {
+        return new Transition<>(EnumSet.of(GameState.MINION_TURN, GameState.MINION_DONE),
+                GameEvent.TURN_END, GameState.ROBBER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.MINION, RoleCard.ROBBER),
+                acceptAndScheduleTurnEnd(GamePhase.ROBBER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> minionToTroublemakerTurn() {
+        return new Transition<>(EnumSet.of(GameState.MINION_TURN, GameState.MINION_DONE),
+                GameEvent.TURN_END, GameState.TROUBLEMAKER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.MINION, RoleCard.TROUBLEMAKER),
+                acceptAndScheduleTurnEnd(GamePhase.TROUBLEMAKER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> minionToDrunkTurn() {
+        return new Transition<>(EnumSet.of(GameState.MINION_TURN, GameState.MINION_DONE),
+                GameEvent.TURN_END, GameState.DRUNK_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.MINION, RoleCard.DRUNK),
+                acceptAndScheduleTurnEnd(GamePhase.DRUNK_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> minionToInsomniacTurn() {
+        return new Transition<>(EnumSet.of(GameState.MINION_TURN, GameState.MINION_DONE),
+                GameEvent.TURN_END, GameState.INSOMNIAC_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.MINION, RoleCard.INSOMNIAC),
+                acceptAndScheduleTurnEnd(GamePhase.INSOMNIAC_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> minionToVote() {
+        return new Transition<>(EnumSet.of(GameState.MINION_TURN, GameState.MINION_DONE),
+                GameEvent.TURN_END, GameState.VOTING,
+                gameContext -> hasNoSpecialRolesAfter(gameContext, RoleCard.MINION),
+                gameContext -> {
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.VOTE_TURN).build();
+                    String roomId = gameContext.getRoom().getId();
+                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
+                });
     }
 
     @Bean
@@ -79,7 +187,44 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> seerToRobberTurn() {
         return new Transition<>(EnumSet.of(GameState.SEER_TURN, GameState.SEER_DONE),
                 GameEvent.TURN_END, GameState.ROBBER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.SEER, RoleCard.ROBBER),
                 acceptAndScheduleTurnEnd(GamePhase.ROBBER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> seerToTroublemakerTurn() {
+        return new Transition<>(EnumSet.of(GameState.SEER_TURN, GameState.SEER_DONE),
+                GameEvent.TURN_END, GameState.TROUBLEMAKER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.SEER, RoleCard.TROUBLEMAKER),
+                acceptAndScheduleTurnEnd(GamePhase.TROUBLEMAKER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> seerToDrunkTurn() {
+        return new Transition<>(EnumSet.of(GameState.SEER_TURN, GameState.SEER_DONE),
+                GameEvent.TURN_END, GameState.DRUNK_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.SEER, RoleCard.DRUNK),
+                acceptAndScheduleTurnEnd(GamePhase.DRUNK_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> seerToInsomniacTurn() {
+        return new Transition<>(EnumSet.of(GameState.SEER_TURN, GameState.SEER_DONE),
+                GameEvent.TURN_END, GameState.INSOMNIAC_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.SEER, RoleCard.INSOMNIAC),
+                acceptAndScheduleTurnEnd(GamePhase.INSOMNIAC_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> seerToVote() {
+        return new Transition<>(EnumSet.of(GameState.SEER_TURN, GameState.SEER_DONE),
+                GameEvent.TURN_END, GameState.VOTING,
+                gameContext -> hasNoSpecialRolesAfter(gameContext, RoleCard.SEER),
+                gameContext -> {
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.VOTE_TURN).build();
+                    String roomId = gameContext.getRoom().getId();
+                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
+                });
     }
 
     @Bean
@@ -96,7 +241,36 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> robberToTroublemakerTurn() {
         return new Transition<>(EnumSet.of(GameState.ROBBER_TURN, GameState.ROBBER_DONE),
                 GameEvent.TURN_END, GameState.TROUBLEMAKER_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.ROBBER, RoleCard.TROUBLEMAKER),
                 acceptAndScheduleTurnEnd(GamePhase.TROUBLEMAKER_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> robberToDrunkTurn() {
+        return new Transition<>(EnumSet.of(GameState.ROBBER_TURN, GameState.ROBBER_DONE),
+                GameEvent.TURN_END, GameState.DRUNK_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.ROBBER, RoleCard.DRUNK),
+                acceptAndScheduleTurnEnd(GamePhase.DRUNK_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> robberToInsomniacTurn() {
+        return new Transition<>(EnumSet.of(GameState.ROBBER_TURN, GameState.ROBBER_DONE),
+                GameEvent.TURN_END, GameState.INSOMNIAC_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.ROBBER, RoleCard.INSOMNIAC),
+                acceptAndScheduleTurnEnd(GamePhase.INSOMNIAC_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> robberToVote() {
+        return new Transition<>(EnumSet.of(GameState.ROBBER_TURN, GameState.ROBBER_DONE),
+                GameEvent.TURN_END, GameState.VOTING,
+                gameContext -> hasNoSpecialRolesAfter(gameContext, RoleCard.ROBBER),
+                gameContext -> {
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.VOTE_TURN).build();
+                    String roomId = gameContext.getRoom().getId();
+                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
+                });
     }
 
     @Bean
@@ -114,7 +288,28 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> troublemakerToDrunkTurn() {
         return new Transition<>(EnumSet.of(GameState.TROUBLEMAKER_TURN, GameState.TROUBLEMAKER_DONE),
                 GameEvent.TURN_END, GameState.DRUNK_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.TROUBLEMAKER, RoleCard.DRUNK),
                 acceptAndScheduleTurnEnd(GamePhase.DRUNK_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> troublemakerToInsomniacTurn() {
+        return new Transition<>(EnumSet.of(GameState.TROUBLEMAKER_TURN, GameState.TROUBLEMAKER_DONE),
+                GameEvent.TURN_END, GameState.INSOMNIAC_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.TROUBLEMAKER, RoleCard.INSOMNIAC),
+                acceptAndScheduleTurnEnd(GamePhase.INSOMNIAC_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> troublemakerToVote() {
+        return new Transition<>(EnumSet.of(GameState.TROUBLEMAKER_TURN, GameState.TROUBLEMAKER_DONE),
+                GameEvent.TURN_END, GameState.VOTING,
+                gameContext -> hasNoSpecialRolesAfter(gameContext, RoleCard.TROUBLEMAKER),
+                gameContext -> {
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.VOTE_TURN).build();
+                    String roomId = gameContext.getRoom().getId();
+                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
+                });
     }
 
     @Bean
@@ -134,7 +329,20 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> drunkToInsomniacTurn() {
         return new Transition<>(EnumSet.of(GameState.DRUNK_TURN, GameState.DRUNK_DONE),
                 GameEvent.TURN_END, GameState.INSOMNIAC_TURN,
+                gameContext -> canTransitionTo(gameContext, RoleCard.DRUNK, RoleCard.INSOMNIAC),
                 acceptAndScheduleTurnEnd(GamePhase.INSOMNIAC_TURN));
+    }
+
+    @Bean
+    Transition<GameState, GameEvent, GameContext> drunkToVote() {
+        return new Transition<>(EnumSet.of(GameState.DRUNK_TURN, GameState.DRUNK_DONE),
+                GameEvent.TURN_END, GameState.VOTING,
+                gameContext -> hasNoSpecialRolesAfter(gameContext, RoleCard.DRUNK),
+                gameContext -> {
+                    PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.VOTE_TURN).build();
+                    String roomId = gameContext.getRoom().getId();
+                    template.convertAndSend("/topic/room/" + roomId, jacksonUtils.toJson(event));
+                });
     }
 
     @Bean
@@ -146,6 +354,7 @@ public class GameTransitionConfig {
     Transition<GameState, GameEvent, GameContext> insomniacToVote() {
         return new Transition<>(EnumSet.of(GameState.INSOMNIAC_TURN, GameState.INSOMNIAC_DONE),
                 GameEvent.TURN_END, GameState.VOTING,
+                gameContext -> hasNoSpecialRolesAfter(gameContext, RoleCard.INSOMNIAC),
                 gameContext -> {
                     PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.VOTE_TURN).build();
                     String roomId = gameContext.getRoom().getId();
@@ -225,4 +434,37 @@ public class GameTransitionConfig {
                     delaySeconds, TimeUnit.SECONDS);
         };
     }
+
+    private boolean canTransitionTo(GameContext gameContext, RoleCard currentRole, RoleCard targetRole) {
+        List<RoleCard> playerCards = gameContext.getRoom().getSelectedCards();
+        
+        if (!playerCards.contains(targetRole)) {
+            return false;
+        }
+        
+        int currentIndex = ROLE_ORDER.indexOf(currentRole);
+        int targetIndex = ROLE_ORDER.indexOf(targetRole);
+        
+        for (int i = currentIndex + 1; i < targetIndex; i++) {
+            if (playerCards.contains(ROLE_ORDER.get(i))) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    private boolean hasNoSpecialRolesAfter(GameContext gameContext, RoleCard currentRole) {
+        List<RoleCard> playerCards = gameContext.getRoom().getSelectedCards();
+        int currentIndex = ROLE_ORDER.indexOf(currentRole);
+        
+        for (int i = currentIndex + 1; i < ROLE_ORDER.size(); i++) {
+            if (playerCards.contains(ROLE_ORDER.get(i))) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
 }

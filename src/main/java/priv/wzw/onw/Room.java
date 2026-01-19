@@ -26,7 +26,7 @@ public class Room {
     // generate id of 4 random characters
     private final String id = RandomStringUtils.randomAlphanumeric(4);
     private final Set<Player> players = new HashSet<>();
-    private final Set<RoleCard> selectedCards = new HashSet<>();
+    private final List<RoleCard> selectedCards = new ArrayList<>();
     private final List<RoleCard> playerInitialCards = new ArrayList<>();
     private final List<RoleCard> playerCards = new ArrayList<>();
     private final List<RoleCard> centerCards = new ArrayList<>();
