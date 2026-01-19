@@ -9,6 +9,7 @@ import priv.wzw.onw.statemachine.GameContext;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -334,12 +335,20 @@ public class OnwController {
             log.info("player {} game is not in voting turn", userId);
             return;
         }
-        if (targetPlayerIndex < 0 || targetPlayerIndex >= room.getSelectedCards().size()) {
+        if (targetPlayerIndex < -1 || targetPlayerIndex >= room.getSelectedCards().size()) {
             log.info("voted target index {} invalid", targetPlayerIndex);
             return;
         }
         int seatNum = room.getSeats().indexOf(voter.getUserId());
-        room.getVotes().get(seatNum).compareAndSet(-1, targetPlayerIndex);
+        if (seatNum < 0) {
+            log.info("player {} not seated", userId);
+            return;
+        }
+        if (targetPlayerIndex == seatNum) {
+            log.info("player {} cannot vote for themselves", userId);
+            return;
+        }
+        room.getVotes().set(seatNum, targetPlayerIndex);
     }
 
     @PostMapping("/player/{userId}/vote/done")
@@ -358,18 +367,18 @@ public class OnwController {
     }
 
     @GetMapping("/player/{userId}/vote/result")
-    public String getVoteResult(@PathVariable("userId") String userId) {
+    public ApiResponse<Map<String, Integer>> getVoteResult(@PathVariable("userId") String userId) {
         Player player = playerManager.getOrCreate(userId);
         Room room = roomManager.lookup(player.getRoomId());
         if (room == null) {
             log.info("player {} room not exist", userId);
-            return null;
+            return ApiResponse.fail("room not exist");
         }
         if (room.getGameStateMachine().getCurrentState() != GameState.END) {
             log.info("Game not ends, cannot get vote result");
-            return null;
+            return ApiResponse.fail("game not ended");
         }
-        return room.getSeats().get(room.getMostVotedTarget());
+        return ApiResponse.success(room.getVoteResult());
     }
 
     @PostMapping("/player/{userId}/restart")

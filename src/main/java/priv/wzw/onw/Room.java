@@ -13,7 +13,6 @@ import priv.wzw.onw.statemachine.GameContext;
 import priv.wzw.onw.statemachine.GameStateMachine;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Data
 @Slf4j
@@ -31,7 +30,7 @@ public class Room {
     private final List<RoleCard> playerCards = new ArrayList<>();
     private final List<RoleCard> centerCards = new ArrayList<>();
     private final List<Boolean> readyList = new ArrayList<>();
-    private final List<AtomicInteger> votes = new ArrayList<>();
+    private final List<Integer> votes = new ArrayList<>();
     private final List<String> seats = new ArrayList<>();
     private final Deque<PlayerColor> colorPool = new ArrayDeque<>();
     private final GameStateMachine gameStateMachine;
@@ -140,7 +139,7 @@ public class Room {
         votes.clear();
         for (int i = 0; i < playerCards.size(); i += 1) {
             readyList.add(false);
-            votes.add(new AtomicInteger(-1));
+            votes.add(null);
         }
     }
 
@@ -155,22 +154,23 @@ public class Room {
         playerInitialCards.addAll(playerCards);
     }
 
-    public int getMostVotedTarget() {
-        Map<Integer, Integer> voteCount = new HashMap<>();
-        int maxCount = -1;
-        int maxCountTarget = -1;
-        for (int i = 0; i < votes.size(); i += 1) {
-            int target = votes.get(i).get();
-            if (target < 0) {
-                continue;
-            }
-            int count = voteCount.getOrDefault(target, 0) + 1;
-            voteCount.put(target, count);
-            if (count > maxCount) {
-                maxCount = count;
-                maxCountTarget = target;
+    public Map<String, Integer> getVoteResult() {
+        Map<String, Integer> voteCount = new HashMap<>();
+        for (int i = 0; i < playerCards.size(); i++) {
+            String playerId = seats.get(i);
+            if (playerId != null) {
+                voteCount.put(playerId, 0);
             }
         }
-        return maxCountTarget;
+        for (int i = 0; i < votes.size(); i++) {
+            Integer target = votes.get(i);
+            if (target != null && target >= 0 && target < seats.size()) {
+                String targetPlayerId = seats.get(target);
+                if (targetPlayerId != null) {
+                    voteCount.put(targetPlayerId, voteCount.getOrDefault(targetPlayerId, 0) + 1);
+                }
+            }
+        }
+        return voteCount;
     }
 }

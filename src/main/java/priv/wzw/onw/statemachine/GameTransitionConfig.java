@@ -367,31 +367,6 @@ public class GameTransitionConfig {
         return new Transition<>(GameState.VOTING, GameEvent.VOTE_COMPLETE, GameState.END,
                 gameContext -> {
                     Room room = gameContext.getRoom();
-                    // TODO deal with tie
-                    Map<Integer, Integer> voteCount = new HashMap<>();
-                    int maxCount = -1;
-                    int maxCountTarget = -1;
-                    for (int i = 0; i < room.getVotes().size(); i += 1) {
-                        int target = room.getVotes().get(i).get();
-                        if (target < 0) {
-                            continue;
-                        }
-                        int count = voteCount.getOrDefault(target, 0) + 1;
-                        voteCount.put(target, count);
-                        if (count > maxCount) {
-                            maxCount = count;
-                            maxCountTarget = target;
-                        }
-                    }
-                    if (maxCountTarget < 0) {
-                        log.info("invalid vote, reset vote counter");
-                        room.getVotes().forEach(vote -> vote.set(-1));
-                        return false;
-                    }
-                    return true;
-                },
-                gameContext -> {
-                    Room room = gameContext.getRoom();
                     PhaseChangedEvent event = PhaseChangedEvent.builder().gamePhase(GamePhase.GAME_OVER).build();
                     template.convertAndSend("/topic/room/" + room.getId(), jacksonUtils.toJson(event));
                 });
@@ -411,7 +386,6 @@ public class GameTransitionConfig {
                     template.convertAndSend("/topic/room/" + room.getId(),
                             jacksonUtils.toJson(roomStateChangeEvent));
                 });
-
     }
 
 
