@@ -173,4 +173,12 @@ public class Room {
         }
         return voteCount;
     }
+
+    public RoleCard getPlayerInitialRole(String userId) {
+        int seatNum = seats.indexOf(userId);
+        if (seatNum < 0) {
+            return null;
+        }
+        return playerInitialCards.get(seatNum);
+    }
 }

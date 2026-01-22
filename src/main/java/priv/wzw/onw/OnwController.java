@@ -110,6 +110,23 @@ public class OnwController {
         playerManager.getOrCreate(userId).startGame();
     }
 
+    @GetMapping("/player/{userId}/initial-role")
+    public ApiResponse<GetInitialRoleData> getInitialRole(@PathVariable("userId") String userId) {
+        Player player = playerManager.get(userId);
+        if (player == null) {
+            return ApiResponse.fail("player not exist");
+        }
+        Room room = roomManager.lookup(player.getRoomId());
+        if (room == null) {
+            return ApiResponse.fail("room not exist");
+        }
+        RoleCard initialRole = room.getPlayerInitialRole(userId);
+        if (initialRole == null) {
+            return ApiResponse.fail("player not seated");
+        }
+        return ApiResponse.success(GetInitialRoleData.builder().initialRole(initialRole).build());
+    }
+
     @GetMapping("/player/{userId}/werewolf-turn")
     public ApiResponse<GetWerewolfData> werewolfTurn(
             @PathVariable("userId") String userId,
